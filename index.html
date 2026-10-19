@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>하루 조각 · 우리들의 집</title>
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html,body{margin:0;min-height:100%;background:#12132b;font-family:"Apple SD Gothic Neo","Pretendard","Noto Sans KR",system-ui,sans-serif;color:#eceaff}
+.bg{background:radial-gradient(120% 70% at 50% 0%,#2b2f6b 0%,#1a1b3f 45%,#12132b 100%);min-height:100vh}
+.glass{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.16);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:0 10px 30px rgba(5,6,25,.45),inset 0 1px 0 rgba(255,255,255,.12)}
+.chip{transition:all .25s;cursor:pointer}
+.chip:hover{background:rgba(255,255,255,.13)}
+.chip.on{border-color:var(--c,#9fb4ff);background:color-mix(in srgb,var(--c,#9fb4ff) 22%,transparent);box-shadow:0 0 18px var(--c,#9fb4ff),inset 0 0 12px color-mix(in srgb,var(--c,#9fb4ff) 40%,transparent)}
+@keyframes pulse{0%,100%{filter:drop-shadow(0 0 6px var(--gc)) drop-shadow(0 0 16px color-mix(in srgb,var(--gc) 40%,transparent))}50%{filter:drop-shadow(0 0 14px var(--gc)) drop-shadow(0 0 40px var(--gc))}}
+.house{animation:pulse 3.2s ease-in-out infinite;cursor:pointer;transition:transform .3s}
+.house:hover{transform:scale(1.05)}
+@keyframes slide{from{opacity:0;transform:translateX(36px)}to{opacity:1;transform:none}}
+.slide{animation:slide .45s cubic-bezier(.2,.8,.2,1)}
+@keyframes fade{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.fade{animation:fade .6s ease both}
+@keyframes orbit{to{transform:rotate(360deg)}}
+@keyframes twinkle{0%,100%{opacity:.25}50%{opacity:1}}
+.star{position:absolute;width:3px;height:3px;border-radius:50%;background:#fff;animation:twinkle 3s infinite}
+@keyframes zap{to{background-position:200% 0}}
+.zap{display:inline-block;height:3px;width:30px;border-radius:2px;background:linear-gradient(90deg,transparent,#fff,var(--c),#fff,transparent);background-size:200% 100%;animation:zap 1s linear infinite;box-shadow:0 0 10px var(--c),0 0 22px var(--c)}
+@keyframes unblur{from{filter:blur(12px);opacity:.3}to{filter:none;opacity:1}}
+.unblur{animation:unblur 1s ease both}
+@keyframes fall{to{transform:translateY(110vh) rotate(720deg)}}
+.conf{position:fixed;top:-20px;width:8px;height:14px;z-index:50;pointer-events:none;animation:fall linear forwards}
+@keyframes aurora{0%{opacity:0}20%,70%{opacity:.85}100%{opacity:0}}
+.aurora{position:fixed;inset:0;z-index:40;pointer-events:none;background:radial-gradient(60% 40% at 20% 20%,#6ee7c8aa,transparent),radial-gradient(60% 40% at 80% 30%,#c4a3ffaa,transparent),radial-gradient(70% 50% at 50% 80%,#ff9fd0aa,transparent);animation:aurora 5s ease forwards}
+@keyframes floatup{to{transform:translate(var(--dx),-170px) scale(1.5);opacity:0}}
+.floater{position:fixed;z-index:60;pointer-events:none;width:22px;height:22px;border-radius:50%;animation:floatup 1.6s ease-out forwards}
+@keyframes drift{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid #cfe0ff;outline-offset:3px}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useEffect,useRef}=React;
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+const T={high:{l:"반짝반짝",e:<Ic n="spark"/>,c:"#6ee7c8"},mid:{l:"잔잔함",e:<Ic n="moon"/>,c:"#9fb4ff"},low:{l:"방전",e:<Ic n="battery"/>,c:"#ff8fa3"}};
+const tier=s=>s>=5?"high":s<=1?"low":"mid";
+const sum=a=>a.reduce((n,x)=>n+x.v,0);
+// "라벨|문장|점수|이모지" 형식 → 선택지
+const L=r=>r.map(x=>{const[l,t,v,e]=x.split("|");return{l,t,v:+v,e:e?<Ic n={e}/>:undefined}});
+const mood=(r)=>L(r);
+
+const M=L(["개운하게 눈뜸|알람이 울리기도 전에 눈이 떠졌고, 몸이 가벼웠다|1","알람 열 번째|알람을 열 번쯤 끄고서야 겨우 몸을 일으켰다|-1","눈뜨자마자 피곤|눈을 뜨자마자 피곤이 밀려왔다|-2","괜히 설렘|이유도 없이 마음이 간질간질한 아침이었다|1","평범한 아침|특별할 것 없는 평범한 아침이었다|0","꿈이 생생함|생생한 꿈의 여운이 아침까지 따라왔다|0","비몽사몽|한참을 비몽사몽 상태로 멍하니 앉아 있었다|-1","기분 좋은 햇살|커튼 사이로 들어온 햇살에 저절로 기분이 좋아졌다|1"]);
+const M1={
+ pos:L(["창문 열기|창문을 활짝 열고 아침 공기를 한가득 들이마셨다|1","커피 내리기|커피를 내려 천천히 마시며 여유를 부렸다|1","노래 틀기|좋아하는 노래를 틀자 오늘의 배경음악이 정해졌다|1","옷 고르기|오늘따라 입을 옷을 한참 골랐다. 괜히 기분이 났다|1","기지개 켜기|기지개를 한껏 켜고 가볍게 몸을 풀었다|1"]),
+ neg:L(["허둥지둥 준비|머리도 제대로 못 말리고 허둥지둥 집을 나섰다|-1","이불 속 폰|이불 속에서 휴대폰만 만지작거리며 시간을 흘려보냈다|-1","샤워로 깨우기|뜨거운 물로 샤워를 하며 억지로 정신을 차렸다|0","커피 수혈|커피부터 한 잔 들이켜고 나서야 하루를 시작할 수 있었다|0","아침 거르기|아침은 건너뛰고 서둘러 집을 나섰다|-1"]),
+ neu:L(["뉴스 훑기|휴대폰으로 뉴스를 훑으며 천천히 정신을 깨웠다|0","멍때리기|아무 생각 없이 창밖을 바라보며 멍을 때렸다|0","간단한 아침|토스트를 구워 간단히 아침을 챙겨 먹었다|0","물 한 잔|물 한 잔을 마시며 오늘 할 일을 떠올려 보았다|0","화분 살피기|화분에 물을 주며 조용히 하루를 열었다|1"]),
+};
+const PL=L(["일터·학교|낮에는 책상 앞에서 정신없이 시간을 보냈다|0|office","카페|낮에는 카페 구석에 자리를 잡고 앉았다|0|cafe","바깥|낮에는 밖으로 나가 바람을 맞으며 돌아다녔다|0|tree","집|낮에는 집에서 느긋하게 시간을 보냈다|0|home","이동 중|낮의 절반은 이동하는 길 위에서 보냈다|0|train","식당|낮에는 식당에서 한 끼를 제대로 챙겨 먹었다|0|ramen"]).map((o,i)=>({...o,pi:i}));
+const EV=[
+ L(["회의에서 인정받음|회의에서 내 의견이 뜻밖에 잘 받아들여졌다|1","쏟아지는 일|일이 끝도 없이 쏟아져서 점심 메뉴도 기억나지 않는다|-2","점심 수다|점심시간에 나눈 수다가 오늘의 가장 큰 쉼표였다|1","실수 연발|사소한 실수가 겹쳐서 하루 종일 마음이 쓰였다|-1"]),
+ L(["인생 음료 발견|처음 시켜 본 음료가 인생 메뉴가 될 만큼 맛있었다|1","미뤄둔 일 끝냄|오래 미뤄 둔 일을 드디어 끝냈다|2","시끄러운 옆자리|옆자리가 시끄러워 집중이 자꾸 깨졌다|-1","창가 자리 득템|운 좋게 창가 자리에 앉아 한참을 있었다|1"]),
+ L(["하늘이 예뻤음|올려다본 하늘이 유난히 예뻐서 한참을 서 있었다|1","갑자기 비|갑자기 쏟아진 비에 허둥지둥 뛰어야 했다|-1","우연한 만남|길에서 뜻밖의 얼굴을 마주쳐 한참을 웃었다|2","산책의 즐거움|발길 닿는 대로 걸었더니 머리가 맑아졌다|1"]),
+ L(["드라마 정주행|보고 싶던 드라마를 몰아 보며 소파와 한 몸이 되었다|1","집안일 해치움|미뤄 둔 집안일을 몰아서 해치웠다. 묘하게 개운했다|0","낮잠 실패|낮잠을 자려다 휴대폰만 보다 시간을 흘려보냈다|-1","요리 도전|새로운 요리에 도전했는데 의외로 성공이었다|2"]),
+ L(["창밖 풍경 멍|차창 밖 풍경을 멍하니 바라보는 시간이 좋았다|1","만원 지옥|사람들에 치여 이동만으로 기력이 다 빠졌다|-2","플레이리스트 발견|우연히 들은 노래 한 곡이 귀에서 떠나지 않았다|1","길 막힘|길이 막혀 예상보다 한참 늦어졌다|-1"]),
+ L(["인생 메뉴 등극|한 입 먹자마자 인생 메뉴라는 확신이 들었다|2","웨이팅의 늪|긴 웨이팅 끝에 먹은 밥은 맛보다 허기가 컸다|-1","혼밥의 여유|혼자 먹는 밥이 오늘따라 느긋하고 편했다|1","같이 먹는 즐거움|맛있는 걸 나눠 먹으니 별것 아닌 얘기에도 웃음이 터졌다|1"]),
+];
+const EG=L(["그냥 흘러간 시간|특별할 것 없이 시간이 흘러갔다|0","작은 기쁨 하나|작은 기쁨 하나가 슬쩍 다녀갔다|1","작은 한숨 하나|작은 한숨이 몇 번 새어 나왔다|-1"]);
+const TH={
+ pos:L(["이런 날이 또 오길|이런 날이 또 왔으면 좋겠다는 생각이 들었다|1","자랑하고 싶다|이 순간을 누군가에게 당장 자랑하고 싶어졌다|1","그냥 감사하다|별다른 이유 없이 그냥 감사한 마음이 들었다|1","나 잘 살고 있네|문득 나 꽤 잘 살고 있구나 싶었다|2","사진 남기고 싶다|이 순간을 사진으로 남겨 두고 싶었다|1"]),
+ neg:L(["집에 가고 싶다|머릿속에는 오직 집에 가고 싶다는 생각뿐이었다|-1","왜 나만 이런가|왜 나한테만 이런 일이 생길까 싶어 억울했다|-1","지나가겠지|그래도 이것 또한 지나가겠지 하며 숨을 골랐다|1","털어놓고 싶다|누구에게든 털어놓고 싶은 마음이 간절했다|0","아무 생각 안 남|너무 지쳐서 아무 생각도 나지 않았다|-1"]),
+};
+const SN=L(["커피 향|하루를 떠올리면 가장 먼저 커피 향이 코끝에 맴돈다|1|cafe","발걸음 소리|또각또각 내 발걸음 소리가 하루의 박자 같았다|0|steps","따뜻한 온기|손끝에 남은 따뜻한 온기가 오래 기억에 남는다|1|heart","음악 한 소절|어느새 귀에 걸린 노래 한 소절이 종일 맴돌았다|1|music","텅 빈 정적|문득 찾아온 정적이 유난히 크게 느껴졌다|-1|mute","달달한 맛|입안에 남은 달콤함이 오늘의 작은 보상이었다|1|cake","바람 냄새|스치는 바람에 계절의 냄새가 실려 왔다|1|leaf","노을빛|하늘을 물들인 노을이 오래 눈에 남았다|1|sunset"]);
+const SH=L(["고마웠다|{g}에게 괜히 고마운 마음이 들었다|1","보고 싶었다|{g}이 문득 보고 싶어졌다|1","미안했다|{g}에게 미안한 마음이 슬그머니 올라왔다|-1","걱정됐다|{g}이 걱정되어 자꾸 신경이 쓰였다|-1","자랑하고 싶다|오늘 있었던 일을 {g}에게 자랑하고 싶었다|1","같이 웃고 싶다|{g}과 함께 웃고 싶은 장면이 있었다|1","그냥 안부|{g}에게 별일 없냐고 물어보고 싶어졌다|0"]);
+const TG=L(["곁에서 보냄|저녁 시간은 {g} 곁에서 보냈다|1|home","연락 나눔|저녁에는 {g}에게 연락해 오늘 하루를 나눴다|1|phone","함께 식사|{g}과 둘러앉아 저녁을 먹었다|1|bowl","각자의 시간|저녁에는 각자 시간을 보냈고, 그게 오히려 편했다|0|phones","못 만나 아쉬움|오늘은 {g}을 보지 못해 조금 아쉬웠다|-1|sad","혼자 조용히|저녁은 혼자 조용히 보냈다|0|moon"]);
+const NT={
+ high:L(["꽉 찬 하루|오늘은 하루가 꽉꽉 채워진 느낌이었다|0","반짝이는 하루|돌아보니 오늘은 곳곳이 반짝이는 하루였다|0","또 오고 싶은 날|이런 날이라면 몇 번이고 다시 와도 좋겠다|0","웃음 가득|오늘은 웃을 일이 참 많았다|0"]),
+ mid:L(["무난한 하루|무난하게 흘러간 하루였다|0","조용한 하루|조용히 지나갔지만 나쁘지 않은 하루였다|0","생각 많은 하루|이런저런 생각이 오래 머문 하루였다|0","느릿한 하루|오늘은 시간이 유난히 느리게 흘러갔다|0"]),
+ low:L(["버텨낸 하루|오늘은 그저 버텨 낸 하루였다|0","흘려보내고 싶은 하루|얼른 흘려보내고 싶은 하루였다|0","내일은 다르길|내일은 오늘과 다르길 바라 본다|0","많이 지친 하루|몸도 마음도 많이 지친 하루였다|0"]),
+};
+const CL={high:["이런 날이 있어서 또 하루를 살아간다.","오늘의 조각들은 오래 반짝일 것 같다.","잠드는 게 아쉬울 만큼 좋은 하루였다."],mid:["큰일은 없었지만, 그래서 고마운 하루다.","이만하면 충분하다. 불을 끄고 눈을 감는다.","내일도 이 정도 온도면 좋겠다."],low:["오늘은 여기까지. 나머지는 내일의 내가 해결해 줄 것이다.","고생했다, 나. 이불이 오늘의 유일한 보상이다.","힘든 하루도 적어 두면 조금 가벼워진다."]};
+const TI={high:["오늘은 별이 가까웠다","반짝이는 조각들","기분 좋은 하루 한 편"],mid:["잔잔하게 흐른 하루","별일 없는 날의 별일","조용히 쌓인 조각들"],low:["그래도 여기까지 왔다","배터리 1%의 하루","흘려보내는 연습"]};
+const TRS={"활발한":"내일은 더 많이 웃고 더 많이 떠들고 싶다.","조용한":"조용히 곱씹은 하루였고, 그 정도가 딱 좋았다.","섬세한":"작은 것들까지 마음에 오래 담아 둔 하루였다.","덤덤한":"큰 감정 없이 지나갔지만, 그것도 나쁘지 않다.","장난꾸러기":"내일은 누구를 웃겨 볼까 벌써부터 궁리 중이다.","걱정 많은":"괜한 걱정이 앞섰지만 일단은 접어 두기로 했다.","다정한":"오늘도 누군가에게 따뜻했길 바라 본다.","솔직한":"숨기지 않고 말하니 마음이 한결 편하다."};
+const RS={가족:["엄마","아빠","첫째","막내","자녀"],연인:["연락 담당","계획 담당","분위기 메이커","든든한 쪽"],친구:["분위기 메이커","총무","길치 담당","고민 상담소"],동료:["팀장","팀원","막내","멘토"],기타:["리더","멤버","새 얼굴"]};
+const GN={가족:"가족",연인:"그 사람",친구:"친구들",동료:"동료들",기타:"우리 집 사람들"};
+const COLORS=["#6ee7c8","#ff9fd0","#9fb4ff","#ffd88a","#c4a3ff"];
+const STG=["아침","아침 장면","낮","장면","마음","감각","우리에게","저녁","밤","한 줄"];
+const tk=t=>GN[t]?t:"기타";
+let CTX={g:"우리 집 사람들",role:"멤버",traits:[]};
+const fill=t=>(t||"").replace(/\{g\}/g,CTX.g);
+
+const KD=t=>({가족:0,연인:2,친구:1,동료:3})[t]??5;
+const SEED=[
+ {id:1,name:"우리 가족",type:"가족",color:"#6ee7c8",role:"첫째",traits:["덤덤한"],info:"주말엔 다 같이 밥 먹는 집",entries:[]},
+ {id:2,name:"우리 둘",type:"연인",color:"#ff9fd0",role:"연락 담당",traits:["섬세한","다정한"],info:"하루 끝엔 서로의 오늘을 묻는 집",entries:[]},
+ {id:3,name:"단톡방 친구들",type:"친구",color:"#9fb4ff",role:"분위기 메이커",traits:["활발한"],info:"읽씹은 해도 손절은 없는 집",entries:[]},
+];
+const DEMO={
+ 가족:[{n:"엄마",t:"high",x:"오랜만에 온 가족이 둘러앉아 저녁을 먹었다. 별말 없어도 밥상이 따뜻하니 그걸로 충분했다."},{n:"동생",t:"low",x:"시험이 코앞이라 하루 종일 도서관에 있었다. 집에 오니 엄마가 끓여 둔 국이 있어서 울컥했다."}],
+ 연인:[{n:"그 사람",t:"high",x:"오늘은 네 생각이 자꾸 났다. 퇴근길에 먹은 호떡이 맛있어서 다음엔 같이 먹고 싶어졌다."},{n:"그 사람",t:"mid",x:"일이 바빠서 연락을 제때 못 했다. 미안하다는 말 대신 내일은 먼저 전화해야지."}],
+ 친구:[{n:"지우",t:"high",x:"단톡방이 오늘따라 시끄러웠다. 별것 아닌 얘기로 웃다 보니 하루의 피로가 조금 풀렸다."},{n:"하준",t:"low",x:"야근에 치여서 답장도 늦었다. 다들 괜찮냐고 물어봐 줘서 괜히 고마웠다."}],
+};
+SEED.forEach(x=>x.kind=KD(x.type));
+const load=()=>{try{const v=JSON.parse(localStorage.getItem("hj_houses"));return v&&v.length?v.map(x=>({entries:[],traits:[],type:"기타",role:"멤버",color:"#9fb4ff",...x,kind:x.kind??KD(x.type)})):SEED}catch(e){return SEED}};
+
+function qFor(s,a){
+ const sc=sum(a),tr=tier(sc),g=CTX.g;
+ if(s===0)return{q:"오늘 아침, 눈을 뜬 순간은 어땠나요?",o:M};
+ if(s===1){const k=a[0].v>0?"pos":a[0].v<0?"neg":"neu";return{q:{pos:"가벼운 마음으로 시작한 아침, 가장 먼저 한 일은?",neg:"무거운 몸을 일으킨 아침, 어떻게 시작했나요?",neu:"평범하게 흘러가는 아침, 가장 먼저 한 일은?"}[k],o:M1[k]}}
+ if(s===2)return{q:sc>0?"가벼운 마음으로 맞은 낮, 어디에 있었나요?":"무거운 몸으로 맞은 낮, 오늘의 무대는 어디였나요?",o:PL};
+ if(s===3)return{q:`${a[2].l}에서 ${sc>0?"가장 반짝였던":"가장 기억에 남는"} 장면은?`,o:EV[a[2].pi]||EG};
+ if(s===4)return{q:"그 순간, 어떤 생각이 스쳤나요?",o:a[3].v>0?TH.pos:TH.neg};
+ if(s===5)return{q:"하루를 돌아보면, 가장 오래 남은 감각은?",o:SN};
+ if(s===6)return{q:`${g}에게 오늘 전하고 싶은 마음은?`,o:SH};
+ if(s===7)return{q:"오늘 저녁은 어떻게 보냈나요?",o:TG};
+ if(s===8)return{q:"잠들기 전, 오늘은 어떤 하루였나요?",o:NT[tr]};
+ return{q:"마지막으로, 나만의 한 줄을 남겨볼래요?",o:[],text:true};
+}
+const S=(...x)=>x.filter(Boolean).map(t=>fill(t).trim().replace(/[.!?]$/,"")+".").join(" ");
+function build(a){
+ const tr=tier(sum(a));
+ const trait=CTX.traits.length?TRS[pick(CTX.traits)]:"";
+ const paras=[
+  S(a[0].t,a[1].t),
+  S(a[2].t,pick(["그러던 중 ","그러다 ","그 와중에 "])+a[3].t,a[4].t),
+  S(a[5].t,a[6].t),
+  S(a[7].t),
+  S(a[8].t,pick(CL[tr]),trait),
+ ];
+ if(a[9]&&a[9].t)paras.splice(4,0,a[9].t);
+ return{tier:tr,title:pick(TI[tr]),date:new Date().toISOString(),tags:a.slice(0,9).map(x=>x.l),paras};
+}
+const fmt=d=>new Date(d).toLocaleDateString("ko-KR",{month:"long",day:"numeric",weekday:"short"});
+
+const ICONS={
+ spark:["M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z","M19 16v4M17 18h4"],
+ moon:["M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"],
+ battery:["M3 8h15v8H3z","M18 10.5h2.5v3H18z","M6 11v2"],
+ office:["M5 21V4h9v17","M14 9h5v12","M3 21h18","M8 8h3M8 12h3M8 16h3"],
+ cafe:["M5 9h11v5a5 5 0 0 1-5 5h-1a5 5 0 0 1-5-5z","M16 10h1.5a2 2 0 0 1 0 4H16","M8 3v2.5M12 3v2.5"],
+ tree:["M12 21v-5","M12 3l5.5 7h-3l4 6h-13l4-6h-3z"],
+ home:["M4 11l8-7 8 7","M6 10v10h12V10","M10 20v-5h4v5"],
+ train:["M7 3h10a2 2 0 0 1 2 2v10a3 3 0 0 1-3 3H8a3 3 0 0 1-3-3V5a2 2 0 0 1 2-2z","M5 11h14","M9 15h.01M15 15h.01","M8 21l2-3M16 21l-2-3"],
+ ramen:["M3 12h18a9 9 0 0 1-18 0z","M8 4c0 1.7 2 1.7 2 3.5M13 4c0 1.7 2 1.7 2 3.5","M7 21h10"],
+ steps:["M8 3c2 0 3 2 3 4s-1 4-3 4-3-2-3-4 1-4 3-4z","M16 10c2 0 3 2 3 4s-1 4-3 4-3-2-3-4 1-4 3-4z"],
+ heart:["M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.5-7 10-7 10z"],
+ music:["M9 18V6l10-2v12","M9 18a2.5 2.5 0 1 1-5 0 2.5 2.5 0 1 1 5 0z","M19 16a2.5 2.5 0 1 1-5 0 2.5 2.5 0 1 1 5 0z"],
+ mute:["M4 9h4l5-4v14l-5-4H4z","M17 9l4 6M21 9l-4 6"],
+ cake:["M4 20h16","M5 20v-6a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v6","M8 12V9M12 12V8M16 12V9"],
+ leaf:["M5 19C5 9 11 4 20 4c0 9-5 15-15 15z","M5 19l8-8"],
+ sunset:["M3 18h18","M6 18a6 6 0 0 1 12 0","M12 6v3M4.5 10l2 1.5M19.5 10l-2 1.5"],
+ phone:["M6 3h4l2 5-2.5 1.5a11 11 0 0 0 5 5L16 12l5 2v4a2 2 0 0 1-2 2C10 20 4 14 4 5a2 2 0 0 1 2-2z"],
+ bowl:["M4 11h16a8 8 0 0 1-16 0z","M8 20h8","M14 3l4 6M17 3l-3 6"],
+ phones:["M4 14v-2a8 8 0 0 1 16 0v2","M4 14h3v6H5a1 1 0 0 1-1-1z","M20 14h-3v6h2a1 1 0 0 0 1-1z"],
+ sad:["M21 12a9 9 0 1 1-18 0 9 9 0 1 1 18 0z","M8.5 10h.01M15.5 10h.01","M8.5 16c1-1.5 2.3-2 3.5-2s2.5.5 3.5 2"],
+ pencil:["M4 20l1-4L16 5l3 3L8 19z","M14 7l3 3"],
+ plus:["M12 5v14M5 12h14"],
+ check:["M5 12.5l4.5 4.5L19 7"],
+ bolt:["M13 2L5 14h6l-1 8 8-12h-6z"],
+ lock:["M6 11h12v9H6z","M8 11V8a4 4 0 0 1 8 0v3","M12 15v2"],
+ party:["M4 20l5-12 7 7z","M14 4v2M19 7l-1.5 1M20 13h-2"],
+ back:["M15 5l-7 7 7 7"],next:["M9 5l7 7-7 7"],close:["M6 6l12 12M18 6L6 18"],
+};
+function Ic({n,s}){return <svg viewBox="0 0 24 24" width={s||"1.15em"} height={s||"1.15em"} fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{display:"inline-block",verticalAlign:"-0.2em",filter:"drop-shadow(0 0 3px currentColor)"}}>{(ICONS[n]||[]).map((d,i)=><path key={i} d={d}/>)}</svg>}
+function Tree({k}){const pine=k%2;return <svg viewBox="0 0 30 40" width="26" height="34" aria-hidden="true"><rect x="13.5" y="28" width="3" height="9" fill="#27506b"/>{pine?<><polygon points="15,2 25,20 5,20" fill="#2f7a8c"/><polygon points="15,10 27,30 3,30" fill="#3d8fa0"/></>:<><circle cx="15" cy="16" r="12" fill="#3d8fa0"/><circle cx="11" cy="12" r="5" fill="#5fb3bd" opacity=".6"/></>}</svg>}
+
+// ---- 아이소메트릭 집 ----
+const P3=(x,y,z)=>[150+(x-y)*30,120+(x+y)*15-z*30];
+const pts=a=>a.map(p=>P3(...p).join(",")).join(" ");
+const shade=(h,f)=>{const n=parseInt(h.slice(1),16);return `rgb(${((n>>16)*f)|0},${(((n>>8)&255)*f)|0},${((n&255)*f)|0})`};
+const Poly=({a,f,o,s})=><polygon points={pts(a)} fill={f} opacity={o} stroke={s} strokeWidth={s?1:0} strokeLinejoin="round"/>;
+const Bx=({x,y,z=0,w,d,h,c})=>(<g>
+ <Poly a={[[x,y,z+h],[x+w,y,z+h],[x+w,y+d,z+h],[x,y+d,z+h]]} f={c[0]}/>
+ <Poly a={[[x,y+d,z+h],[x+w,y+d,z+h],[x+w,y+d,z],[x,y+d,z]]} f={c[1]}/>
+ <Poly a={[[x+w,y,z+h],[x+w,y+d,z+h],[x+w,y+d,z],[x+w,y,z]]} f={c[2]}/></g>);
+const GLW={filter:"drop-shadow(0 0 3px #ffd36b)"},LIT="#ffe27a";
+const WL=({x1,x2,y,z1,z2,f=LIT})=><polygon points={pts([[x1,y,z2],[x2,y,z2],[x2,y,z1],[x1,y,z1]])} fill={f} style={f===LIT?GLW:undefined}/>;
+const WR=({y1,y2,x,z1,z2,f=LIT})=><polygon points={pts([[x,y1,z2],[x,y2,z2],[x,y2,z1],[x,y1,z1]])} fill={f} style={f===LIT?GLW:undefined}/>;
+const Gable=({x,y,w,d,z,r,c,sh})=>{const m=y+d/2;return <g>
+ <Poly a={[[x+w,y,z],[x+w,y+d,z],[x+w,m,z+r]]} f={sh}/>
+ <Poly a={[[x-.15,y+d+.15,z],[x+w+.15,y+d+.15,z],[x+w+.15,m,z+r],[x-.15,m,z+r]]} f={c} s="rgba(255,255,255,.35)"/></g>};
+const Hip=({x,y,w,d,z,r,o=.3,c,sh})=>{const m=y+d/2,a=x+d/2,b=x+w-d/2;return <g>
+ <Poly a={[[x+w+o,y-o,z],[x+w+o,y+d+o,z],[b,m,z+r]]} f={sh} s="rgba(255,255,255,.3)"/>
+ <Poly a={[[x-o,y+d+o,z],[x+w+o,y+d+o,z],[b,m,z+r],[a,m,z+r]]} f={c} s="rgba(255,255,255,.3)"/></g>};
+const Cyl=({cx,cy,z,r,h,c})=>{const[X,Y]=P3(cx,cy,z),[,Yt]=P3(cx,cy,z+h),rx=42.4*r,ry=21.2*r;return <g>
+ <path d={`M${X-rx} ${Yt}V${Y}A${rx} ${ry} 0 0 0 ${X+rx} ${Y}V${Yt}z`} fill={c[1]}/><ellipse cx={X} cy={Yt} rx={rx} ry={ry} fill={c[0]}/></g>};
+const Dome=({cx,cy,z,r,hh,c})=>{const[X,Y]=P3(cx,cy,z),rx=42.4*r,ry=21.2*r;return <path d={`M${X-rx} ${Y}A${rx} ${hh} 0 0 1 ${X+rx} ${Y}A${rx} ${ry} 0 0 1 ${X-rx} ${Y}z`} fill={c}/>};
+const Tr=({x,y,s=1,pine})=>{const[X,Y]=P3(x,y,0);return <g><ellipse cx={X} cy={Y} rx={12*s} ry={5*s} fill="#0b0d2a" opacity=".35"/><rect x={X-1.6} y={Y-14*s} width="3.2" height={14*s} fill="#27506b"/>{pine?<><polygon points={`${X},${Y-40*s} ${X+11*s},${Y-16*s} ${X-11*s},${Y-16*s}`} fill="#2f7a8c"/><polygon points={`${X},${Y-32*s} ${X+13*s},${Y-9*s} ${X-13*s},${Y-9*s}`} fill="#3d8fa0"/></>:<><ellipse cx={X} cy={Y-24*s} rx={13*s} ry={14*s} fill="#3d8fa0"/><ellipse cx={X-3*s} cy={Y-28*s} rx={6*s} ry={7*s} fill="#5fb3bd" opacity=".6"/></>}</g>};
+const Lamp=({x,y})=>{const[X,Y]=P3(x,y,0);return <g><rect x={X-1} y={Y-18} width="2" height="18" fill="#27506b"/><circle cx={X} cy={Y-20} r="4" fill={LIT} style={{filter:"drop-shadow(0 0 5px #ffd36b)"}}/></g>};
+
+function House({onClick,color,cls="w-60 h-60",kind=0}){
+ const c0=["#5b6fd6","#3f4ca8","#2e3a86"],c1=["#b7c2ff","#8591ee","#626bc9"],c2=["#7a64b8","#54449a","#3d3278"],c3=["#e3c2d2","#bb8fab","#926d89"],c4=["#a9bcff","#7389ee","#5a6ecb"],c5=["#eadccd","#c9b19d","#a8917f"];
+ const roof=shade(color,.85);
+ const K=[
+  <><Tr x={.7} y={3.2} s={.95}/><Tr x={3.4} y={.6}/>
+   <Bx x={1} y={1} w={2} d={1.8} h={1.4} c={c0}/><Bx x={1.35} y={1.2} z={1.4} w={.4} d={.4} h={1.3} c={c2}/>
+   <Gable x={1} y={1} w={2} d={1.8} z={1.4} r={1.1} c={roof} sh={c0[2]}/>
+   <WL x1={1.25} x2={1.7} y={2.8} z1={.45} z2={1.05}/><WL x1={2.3} x2={2.75} y={2.8} z1={.45} z2={1.05}/><WL x1={1.85} x2={2.15} y={2.8} z1={0} z2={.8} f="#222a6a"/><WR y1={1.5} y2={2.3} x={3} z1={.45} z2={1.05}/></>,
+  <><Tr x={3.5} y={3.3} s={.8}/><Tr x={.5} y={.6} s={.9}/>
+   <Bx x={.7} y={.8} w={2.6} d={2.2} h={1.2} c={c1}/><Bx x={1.3} y={1.1} z={1.2} w={1.7} d={1.4} h={.9} c={c1}/>
+   <Bx x={1.2} y={1} z={2.1} w={1.9} d={1.6} h={.14} c={[color,shade(color,.6),shade(color,.45)]}/>
+   <WL x1={.95} x2={3.05} y={3} z1={.3} z2={.95}/><WL x1={1.55} x2={2.75} y={2.5} z1={1.4} z2={1.95}/><WR y1={1.1} y2={2.8} x={3.3} z1={.3} z2={.95}/><WR y1={1.3} y2={2.3} x={3} z1={1.4} z2={1.95}/></>,
+  <><Tr pine x={.5} y={.7} s={1.1}/><Tr pine x={3.5} y={.9}/><Tr pine x={.6} y={3.4} s={.85}/><Tr pine x={3.4} y={3.5} s={.8}/>
+   <Gable x={1} y={.9} w={2.2} d={2.2} z={0} r={2.7} c={roof} sh={c2[2]}/>
+   <Poly a={[[3.2,1.55,.5],[3.2,2.45,.5],[3.2,2,1.6]]} f={LIT}/>
+   <Bx x={1.5} y={3.25} w={1.2} d={.5} h={.12} c={c3}/><WL x1={1.8} x2={2.4} y={3.1} z1={.12} z2={.9}/></>,
+  <><Tr x={3.5} y={3.4} s={.8}/><Tr x={.5} y={.7} s={.9}/>
+   <Bx x={1} y={.9} w={1.9} d={1.8} h={2.2} c={c3}/><Bx x={1.3} y={1.15} z={2.2} w={.35} d={.35} h={1.1} c={c0}/>
+   <Gable x={1} y={.9} w={1.9} d={1.8} z={2.2} r={.95} c={roof} sh={c3[2]}/>
+   <WL x1={1.2} x2={1.5} y={2.7} z1={.55} z2={1.15}/><WL x1={2.35} x2={2.65} y={2.7} z1={.55} z2={1.15}/><WL x1={1.75} x2={2.1} y={2.7} z1={0} z2={.95} f="#222a6a"/>
+   <WL x1={1.2} x2={1.55} y={2.7} z1={1.4} z2={2}/><WL x1={2.3} x2={2.65} y={2.7} z1={1.4} z2={2}/>
+   <WR y1={1.2} y2={1.7} x={2.9} z1={1.4} z2={2}/><WR y1={1.9} y2={2.4} x={2.9} z1={1.4} z2={2}/><WR y1={1.4} y2={1.9} x={2.9} z1={.5} z2={1.1}/>
+   <Poly a={[[1.65,2.7,1.05],[2.2,2.7,1.05],[2.2,3,.9],[1.65,3,.9]]} f={color}/></>,
+  <><Bx x={.3} y={.3} w={.9} d={.9} h={.7} c={c5}/><Tr x={3.5} y={.5} s={.9}/><Tr pine x={.5} y={3.4} s={.85}/>
+   <Cyl cx={2} cy={2} z={0} r={1.35} h={1} c={c4}/>
+   <Dome cx={2} cy={2} z={1} r={1.35} hh={52} c={color}/><path d="M145 148V108Q150 102 155 108V148z" fill={LIT} style={GLW}/>
+   <rect x="116" y="180" width="11" height="13" rx="2" fill={LIT} style={GLW}/><rect x="173" y="180" width="11" height="13" rx="2" fill={LIT} style={GLW}/><rect x="144" y="188" width="12" height="17" rx="2" fill="#222a6a"/></>,
+  <><Tr pine x={3.4} y={3.4} s={.95}/><Tr x={.5} y={.6} s={.8}/>
+   <Bx x={.6} y={1.1} w={2.8} d={1.8} h={.9} c={c5}/>
+   <WL x1={.9} x2={1.5} y={2.9} z1={.2} z2={.75} f="#ffe9a8"/><WL x1={1.75} x2={2.25} y={2.9} z1={0} z2={.8} f="#7a4b3a"/><WL x1={2.5} x2={3.1} y={2.9} z1={.2} z2={.75} f="#ffe9a8"/><WR y1={1.4} y2={2.6} x={3.4} z1={.2} z2={.75} f="#ffe9a8"/>
+   <Hip x={.6} y={1.1} w={2.8} d={1.8} z={.9} r={.95} c={shade(color,.8)} sh={shade(color,.55)}/>
+   {[[2,3.2],[2.1,3.5]].map(([x,y],i)=>{const[X,Y]=P3(x,y,0);return <ellipse key={i} cx={X} cy={Y} rx="8" ry="3.5" fill="#8d90c4" opacity=".7"/>})}</>,
+ ];
+ return (
+  <svg viewBox="0 0 300 300" className={"house "+cls} style={{"--gc":color}} onClick={onClick} role={onClick?"button":"img"} tabIndex={onClick?0:-1} aria-label="집" onKeyDown={e=>e.key==="Enter"&&onClick&&onClick()}>
+   <defs>
+    <linearGradient id="sl" x1="0" x2="1"><stop offset="0" stopColor="#4b63c9"/><stop offset="1" stopColor="#8f86c9"/></linearGradient>
+    <linearGradient id="sr" x1="0" x2="1"><stop offset="0" stopColor="#c9b9d9"/><stop offset="1" stopColor="#f0d9c9"/></linearGradient>
+   </defs>
+   <Poly a={[[0,4,0],[4,4,0],[4,4,-.9],[0,4,-.9]]} f="url(#sl)"/>
+   <Poly a={[[4,0,0],[4,4,0],[4,4,-.9],[4,0,-.9]]} f="url(#sr)"/>
+   <polygon points={pts([[0,0,0],[4,0,0],[4,4,0],[0,4,0]])} fill="#262a5e" stroke={color} strokeWidth="4" strokeLinejoin="round"/>
+   <Poly a={[[.25,.25,0],[3.75,.25,0],[3.75,3.75,0],[.25,3.75,0]]} f="#2a3a82"/>
+   <Poly a={[[1.75,3.75,0],[2.25,3.75,0],[2.25,2.85,0],[1.75,2.85,0]]} f="#7d80b8" o=".5"/>
+   {K[kind%6]}
+   <Lamp x={.45} y={3.55}/>
+  </svg>
+ );
+}
+const Tag=({t,c})=><span className="text-[11px] rounded-full px-2 py-0.5" style={{border:"1px solid "+c+"88"}}>{t}</span>;
+function Entry({d}){
+ const [open,setOpen]=useState(false);
+ const m=T[d.tier||d.t]||T.mid,paras=d.paras||[d.x];
+ return (
+  <button onClick={()=>setOpen(!open)} className="glass rounded-2xl p-4 text-left w-full" style={open?{borderColor:m.c,boxShadow:`0 0 20px ${m.c}55`}:{}}>
+   <div className="flex items-center justify-between text-xs text-indigo-200/70"><span>{d.n}{d.date?" · "+fmt(d.date):" · 오늘"}</span><span style={{color:m.c}}>{m.e} {m.l}</span></div>
+   <p className="font-semibold mt-1">{d.title||`${d.n}의 하루`}</p>
+   {d.tags&&<div className="flex flex-wrap gap-1.5 mt-2">{d.tags.slice(0,6).map((t,i)=><Tag key={i} t={t} c={m.c}/>)}</div>}
+   {open?<div className="mt-3 space-y-2 text-sm leading-7 text-indigo-50/90 fade">{paras.map((p,i)=><p key={i}>{p}</p>)}</div>:<p className="text-xs text-indigo-200/60 mt-2 truncate">{paras[0]}</p>}
+  </button>
+ );
+}
+function CustomInput({onDone,final}){
+ const [open,setOpen]=useState(final),[v,setV]=useState("");
+ const ok=()=>{const t=v.trim();onDone(final?{l:t?"나의 한 줄":"",v:0,t}:{l:t.length>9?t.slice(0,9)+"…":t,v:0,t})};
+ if(!open)return <button onClick={()=>setOpen(true)} className="col-span-2 chip rounded-2xl py-3 text-sm text-indigo-100/80" style={{border:"1px dashed rgba(255,255,255,.3)"}}><Ic n="pencil"/> 내 말로 쓰기</button>;
+ return (
+  <div className="col-span-2 fade">
+   <textarea autoFocus={!final} value={v} rows={final?3:2} maxLength={80} onChange={e=>setV(e.target.value)} placeholder={final?"예) 오늘 먹은 떡볶이는 진짜 맛있었다":"내 말로 한 문장 (문장 그대로 일기에 들어가요)"} className="w-full glass rounded-2xl p-3 text-base outline-none" style={{color:"#eceaff"}}/>
+   <button onClick={()=>(v.trim()||final)&&ok()} style={{"--c":"#9fb4ff"}} className="glass chip on rounded-full w-full py-3 mt-2 text-sm font-semibold">{final?(v.trim()?"일기 완성하기":"건너뛰고 완성하기"):"이 말로 이어가기"}</button>
+  </div>
+ );
+}
+const Chips=({opts,val,pick:pk,multi,c="#9fb4ff"})=>(
+ <div className="flex flex-wrap gap-2">{opts.map(o=>{const on=multi?val.includes(o):val===o;return <button key={o} onClick={()=>pk(o)} style={{"--c":c}} className={"glass chip rounded-full px-3.5 py-2 text-sm "+(on?"on":"")}>{o}</button>})}</div>
+);
+
+const dk=d=>{const x=new Date(d);return x.getFullYear()+"-"+(x.getMonth()+1)+"-"+x.getDate()};
+const MEM={가족:["엄마","아빠","동생"],연인:["그 사람"],친구:["지우","하준","서연"],동료:["팀장님","민아","지훈"],기타:["이웃 A","이웃 B"]};
+const kwTag=k=>"#"+k.replace(/ /g,"_");
+const msgOf=m=>m.kind==="jackpot"?`우리 모두가 오늘 ${kwTag(m.kw)} 를 골랐어요! 잭팟!`:`${m.names.map(n=>n+"님").join(", ")}과 내가 오늘 동시에 ${kwTag(m.kw)} 키워드를 골랐어요!`;
+function genToday(a,tr){
+ const names=MEM[tk(CTX.type)],jp=names.length>1&&Math.random()<.15;
+ const mine=[a[3],a[4],a[5],a[0]].map(x=>x.l);
+ const ms=names.map(n=>{
+  const cp=jp||Math.random()<.5,mo=pick(M),pl=cp?a[2]:pick(PL),ev=cp?a[3]:pick(EV[pl.pi]||EG);
+  const th=pick(ev.v>0?TH.pos:TH.neg),sn=pick(SN),t=tier(mo.v+ev.v+th.v+sn.v+1),nt=pick(NT[t]);
+  return{n,tier:t,tags:[ev.l,mo.l,pl.l,sn.l],kw:[ev.l,th.l,sn.l,mo.l],x:S(mo.t,pl.t,ev.t,th.t,nt.t)};
+ });
+ let best=null;
+ mine.forEach(k=>{const ns=ms.filter(m=>m.kw.includes(k)).map(m=>m.n);if(ns.length&&(!best||ns.length>best.names.length))best={kw:k,names:ns}});
+ if(best)best.kind=best.names.length===names.length&&names.length>1?"jackpot":"pair";
+ const pats=Math.min(names.length,tr==="low"?1+Math.floor(Math.random()*names.length):Math.floor(Math.random()*2));
+ return{date:dk(Date.now()),members:ms,match:best,pats};
+}
+function Bubble({t,c,hit,zapm,onPat}){
+ const tm=useRef();
+ const go=el=>onPat(el);
+ return <span onDoubleClick={e=>go(e.currentTarget)} onPointerDown={e=>{const el=e.currentTarget;tm.current=setTimeout(()=>go(el),500)}} onPointerUp={()=>clearTimeout(tm.current)} onPointerLeave={()=>clearTimeout(tm.current)} onContextMenu={e=>e.preventDefault()} className="chip text-[11px] rounded-full px-2.5 py-1 select-none" style={{border:"1px solid "+c+"88",background:hit?c+"44":"transparent",boxShadow:hit?`0 0 12px ${c}`:"none",touchAction:"manipulation",WebkitUserSelect:"none"}}>{zapm&&<><Ic n="bolt"/> </>}{kwTag(t)}</span>;
+}
+function Avatars({me,members,match,color}){
+ const ms=match?["나",...match.names]:[];
+ const order=[{n:"나",tier:me,me:1},...members.slice().sort((a,b)=>(ms.includes(b.n)?1:0)-(ms.includes(a.n)?1:0))];
+ return <div className="flex items-center justify-center flex-wrap gap-y-3">{order.map((o,i)=>{const on=ms.includes(o.n),nx=order[i+1],c=T[o.tier].c;return(
+  <React.Fragment key={o.n}>
+   <div className="flex flex-col items-center"><div className="w-12 h-12 rounded-full flex items-center justify-center font-bold" style={{background:c+"33",border:`2px solid ${c}`,boxShadow:on?`0 0 18px ${color}`:"none"}}>{o.me?"나":o.n[0]}</div><span className="text-[10px] mt-1 text-indigo-200/70">{o.n}</span></div>
+   {on&&nx&&ms.includes(nx.n)&&<span className="zap mx-1 mb-4" style={{"--c":color}}/>}
+  </React.Fragment>)})}</div>;
+}
+function Cal({entries,color}){
+ const [off,setOff]=useState(0),[sel,setSel]=useState(null);
+ const now=new Date(),b=new Date(now.getFullYear(),now.getMonth()+off,1);
+ const days=new Date(b.getFullYear(),b.getMonth()+1,0).getDate(),lead=b.getDay();
+ const map={};[...entries].reverse().forEach(e=>{map[dk(e.date)]=e});
+ const cells=[...Array(lead).fill(null),...Array.from({length:days},(_,i)=>i+1)];
+ const key=d=>`${b.getFullYear()}-${b.getMonth()+1}-${d}`,se=sel&&map[sel],tdy=dk(Date.now());
+ return (
+  <div className="glass rounded-3xl p-4">
+   <div className="flex items-center justify-between mb-3">
+    <button onClick={()=>{setOff(off-1);setSel(null)}} className="w-9 h-9 rounded-full glass" aria-label="이전 달"><Ic n="back"/></button>
+    <p className="font-semibold">{b.getFullYear()}년 {b.getMonth()+1}월</p>
+    <button onClick={()=>{setOff(off+1);setSel(null)}} className="w-9 h-9 rounded-full glass" aria-label="다음 달"><Ic n="next"/></button>
+   </div>
+   <div className="grid grid-cols-7 gap-1 text-center text-[11px] text-indigo-200/60 mb-1">{"일월화수목금토".split("").map(d=><span key={d}>{d}</span>)}</div>
+   <div className="grid grid-cols-7 gap-1">{cells.map((d,i)=>{
+    if(!d)return <span key={i}/>;
+    const k=key(d),e=map[k],c=e&&T[e.tier].c;
+    return <button key={i} disabled={!e} onClick={()=>setSel(k)} className="h-16 rounded-xl flex flex-col items-center pt-1 overflow-hidden" style={e?{border:`1px solid ${c}`,background:c+"1f",boxShadow:`0 0 ${sel===k?14:6}px ${c}88`}:{border:k===tdy?`1px solid ${color}`:"1px solid rgba(255,255,255,.07)"}} aria-label={`${d}일`}>
+     <span className="text-[11px]" style={{color:k===tdy?color:undefined,fontWeight:k===tdy?700:400}}>{d}</span>
+     {e&&((e.tags[3]||"").length<=5?<><span className="text-[9px] leading-[11px] max-w-full px-0.5 truncate" style={{color:c}}>{e.tags[3]}</span><span className="text-[9px] leading-[11px] max-w-full px-0.5 truncate opacity-70" style={{color:c}}>{e.tags[8]||T[e.tier].l}</span></>:<span className="text-[9px] leading-[11px] max-w-full px-0.5 text-center break-keep line-clamp-2" style={{color:c}}>{e.tags[3]}</span>)}
+    </button>})}</div>
+   {se?(
+    <div className="mt-4 fade rounded-2xl p-4" style={{border:`1px solid ${T[se.tier].c}88`,background:"rgba(255,255,255,.05)"}}>
+     <p className="text-xs text-indigo-200/70">{fmt(se.date)} · <span style={{color:T[se.tier].c}}>{T[se.tier].e} {T[se.tier].l}</span></p>
+     <p className="font-semibold mt-1">{se.title}</p>
+     <div className="flex flex-wrap gap-1.5 mt-2">{se.tags.slice(0,6).map((t,i)=><Tag key={i} t={kwTag(t)} c={T[se.tier].c}/>)}</div>
+     <div className="mt-3 space-y-2 text-sm leading-7 text-indigo-50/90">{se.paras.map((t,i)=><p key={i}>{t}</p>)}</div>
+    </div>
+   ):<p className="text-xs text-indigo-200/60 text-center mt-3">빛나는 날짜를 누르면 그날의 일기를 볼 수 있어요</p>}
+  </div>
+ );
+}
+const ENDS=[["다","~했다 · 담백하게"],["어","~했어 · 혼잣말처럼"],["음","~했음 · 짧고 간단하게"],["요","~했어요 · 공손하게"]];
+const LENS=[["짧게","짧게 (2~3문장)"],["보통","보통 (4~5문장)"],["길게","길게 (6문장 이상)"]];
+const LMSG=["오늘의 조각을 하나씩 모으는 중...","나의 글투를 떠올리는 중...","문장을 자연스럽게 이어 붙이는 중..."];
+function promptFor(a,h,st,c){
+ const S0={end:"다",len:"보통",habit:"",samples:[],...(st||{})};
+ const endD={다:"'~했다/~이다'로 끝내는 담백한 평서문",어:"'~했어/~이야'처럼 혼잣말하듯 하는 반말",음:"'~했음/~함'처럼 짧게 끊는 메모체",요:"'~했어요/~예요'로 끝내는 공손한 말투"}[S0.end];
+ const n={짧게:"전체 3문장 안팎",보통:"전체 5문장 안팎",길게:"전체 8문장 안팎"}[S0.len];
+ const lines=a.slice(0,9).map((x,i)=>`- [${STG[i]}] ${x.l}: ${(x.t||"").replace(/\{g\}/g,c.g)}`).join("\n");
+ const one=a[9]&&a[9].t?`\n[사용자가 직접 쓴 한 줄 - 반드시 그대로 포함]\n${a[9].t}\n`:"";
+ const ex=(S0.samples||[]).map((x,i)=>`예시${i+1}: ${x}`).join("\n");
+ return `당신은 사용자를 대신해 그 사람의 일기를 대필하는 작가입니다. 읽는 사람이 "AI가 쓴 글"이라고 느끼지 못하게, 사용자가 직접 쓴 것처럼 써 주세요.
+
+[일기를 공유하는 집]
+이름: ${h.name} / 무리: ${h.type} / 이 집에서 나의 역할: ${h.role} / 나의 성격: ${(h.traits||[]).join(", ")||"정보 없음"}${h.info?" / 집 소개: "+h.info:""}
+이 일기는 ${c.g}도 읽습니다. 그 점을 은근히 반영하되, 독자에게 직접 말을 걸지는 마세요.
+
+[오늘 사용자가 고른 하루의 조각]
+${lines}
+${one}
+[사용자의 글투]
+- 말끝: ${endD}
+- 분량: ${n}
+- 말버릇/자주 쓰는 표현: ${S0.habit||"없음"}
+${ex?"- 사용자가 평소 쓴 일기 (문장 길이, 리듬, 단어 선택, 말끝을 최대한 따라 하세요):\n"+ex:"- 평소 쓴 일기 예시 없음"}
+
+[규칙]
+1. 1인칭으로, 고른 조각의 사실만 사용하세요. 없던 사건이나 인물을 지어내지 마세요. 감정과 묘사를 자연스럽게 풀어 쓰는 것은 괜찮습니다.
+2. 조각을 나열하지 말고, 아침부터 밤까지 시간 순서로 자연스럽게 이어지는 한 편의 글로 쓰세요.
+3. 상투적인 AI 문구, 과한 미사여구, 이모지, 해시태그, 따옴표 남발을 쓰지 마세요.
+4. 출력은 JSON만. 다른 설명 금지: {"title":"12자 이내의 제목","paras":["문단1","문단2"]} (문단은 2~4개)`;
+}
+function App(){
+ const [houses,setHouses]=useState(load);
+ const [hid,setHid]=useState(null);
+ const [style,setStyleS]=useState(()=>{try{return JSON.parse(localStorage.getItem("hj_style"))}catch(e){return null}});
+ const setStyle=v=>{setStyleS(v);try{localStorage.setItem("hj_style",JSON.stringify(v))}catch(e){}};
+ const [view,setView]=useState(()=>{try{const v=JSON.parse(localStorage.getItem("hj_style"));return v&&v.done?"home":"style"}catch(e){return"style"}});
+ const [sd,setSd]=useState(()=>({end:"다",len:"보통",habit:"",sample:"",...(style||{})}));
+ const [sw,setSw]=useState(0),[lastId,setLastId]=useState(null),[ed,setEd]=useState(false),[etxt,setEtxt]=useState(""),[note,setNote]=useState(""),[ls,setLs]=useState(0);
+ const gen=useRef(0);
+ const [draft,setDraft]=useState(null);
+ const [wz,setWz]=useState(0);
+ const [fresh,setFresh]=useState(false),[toast,setToast]=useState(null),[conf,setConf]=useState([]),[fl,setFl]=useState([]),[sent,setSent]=useState({});
+ const [ans,setAns]=useState([]);
+ const [pk,setPk]=useState(null);
+ const [diary,setDiary]=useState(null);
+ const timer=useRef();
+ useEffect(()=>{try{localStorage.setItem("hj_houses",JSON.stringify(houses))}catch(e){}},[houses]);
+ useEffect(()=>()=>clearTimeout(timer.current),[]);
+ useEffect(()=>{if(view!=="loading")return;setLs(0);const t=setInterval(()=>setLs(x=>(x+1)%3),1600);return()=>clearInterval(t)},[view]);
+ const h=houses.find(x=>x.id===hid);
+ if(h)CTX={g:GN[tk(h.type)],role:h.role,traits:h.traits,type:h.type};
+ const TODAY=dk(Date.now());
+ const wroteToday=h&&h.entries[0]&&dk(h.entries[0].date)===TODAY;
+ const tdy=wroteToday&&h.today&&h.today.date===TODAY?h.today:null;
+ const myC=wroteToday?T[h.entries[0].tier].c:"#ffd88a";
+ useEffect(()=>{
+  if(view!=="house"||!fresh||!h)return;
+  setFresh(false);
+  const mt=h.today&&h.today.match;
+  if(mt){
+   setToast(msgOf(mt));
+   try{navigator.vibrate&&navigator.vibrate(mt.kind==="jackpot"?[80,40,80,40,200,60,320]:[40,30,60])}catch(e){}
+   if(mt.kind==="jackpot")setConf(Array.from({length:60},(_,i)=>({i,x:Math.random()*100,d:2.5+Math.random()*2.5,dl:Math.random()*1.2,c:["#6ee7c8","#ff9fd0","#ffd88a","#9fb4ff","#c4a3ff"][i%5]})));
+   setTimeout(()=>{setToast(null);setConf([])},6500);
+  }
+ },[view,fresh]);
+ const pat=(el,key)=>{
+  const r=el.getBoundingClientRect(),id=Date.now();
+  setFl(f=>[...f,...[0,1,2].map(i=>({id:id+i,x:r.left+r.width/2+(i-1)*10,y:r.top,dx:(i-1)*26+"px",c:myC}))]);
+  setTimeout(()=>setFl(f=>f.filter(x=>x.id<id||x.id>id+2)),1700);
+  setSent(s=>({...s,[key]:1}));
+  try{navigator.vibrate&&navigator.vibrate(20)}catch(e){}
+ };
+ const qi=ans.length,cur=h&&qi<10?qFor(qi,ans):null;
+ const col=qi&&h?T[tier(sum(ans))].c:(h?h.color:"#9fb4ff");
+
+ const enter=id=>{setHid(id);setView("house")};
+ const startQuiz=()=>{setAns([]);setPk(null);setView("quiz")};
+ const finish=async next=>{
+  const id=++gen.current,hh=h,st=style,cs={...CTX};
+  const base=build(next),today=genToday(next,base.tier);
+  setDiary(base);setEd(false);setNote("");setView("loading");
+  let out=null;
+  const run=(async()=>{
+   try{
+    const ctl=new AbortController(),to=setTimeout(()=>ctl.abort(),35000);
+    const call=()=>fetch("/api/diary",{method:"POST",headers:{"Content-Type":"application/json","x-access-code":localStorage.getItem("hj_code")||""},body:JSON.stringify({prompt:promptFor(next,hh,st,cs)}),signal:ctl.signal});
+    let res=await call();
+    if(res.status===401){const c=window.prompt("접속 코드를 입력하세요");if(!c)return;try{localStorage.setItem("hj_code",c)}catch(e){}res=await call()}
+    if(!res.ok)return;
+    const r=await res.json();
+    clearTimeout(to);
+    const m=String(r.text||"").match(/\{[\s\S]*\}/);if(!m)return;
+    const j=JSON.parse(m[0]);
+    if(j&&Array.isArray(j.paras)&&j.paras.length)out={title:String(j.title||base.title).slice(0,24),paras:j.paras.map(String).filter(Boolean)};
+   }catch(e){out=null}
+  })();
+  await Promise.all([run,new Promise(r=>setTimeout(r,2200))]);
+  if(id!==gen.current)return;
+  const d={...base,...(out||{}),ai:!!out,id:Date.now()};
+  setDiary(d);setLastId(d.id);
+  setHouses(hs=>hs.map(x=>x.id===hh.id?{...x,entries:[d,...x.entries],today}:x));
+  setFresh(true);setView("result");
+ };
+ const openStyle=()=>{setSd({end:"다",len:"보통",habit:"",...(style||{}),sample:""});setSw(0);setView("style")};
+ const saveStyle=()=>{
+  const sm=sd.sample.trim();
+  setStyle({done:true,end:sd.end,len:sd.len,habit:sd.habit.trim(),samples:[...(sm?[sm]:[]),...((style&&style.samples)||[])].slice(0,3)});
+  setView("home");
+ };
+ const saveEdit=()=>{
+  const paras=etxt.split(/\n+/).map(x=>x.trim()).filter(Boolean);
+  if(!paras.length)return;
+  setDiary({...diary,paras});
+  setHouses(hs=>hs.map(x=>x.id===hid?{...x,entries:x.entries.map(e=>e.id===lastId?{...e,paras}:e)}:x));
+  setStyle({end:"다",len:"보통",habit:"",...(style||{}),done:true,samples:[paras.join(" "),...((style&&style.samples)||[])].slice(0,3)});
+  setEd(false);setNote("고친 문장으로 나의 글투를 더 배웠어요");
+ };
+ const choose=o=>{
+  if(pk)return;setPk(o.l||"x");
+  setTimeout(()=>{
+   const next=[...ans,o];setAns(next);setPk(null);
+   if(next.length===10)finish(next);
+  },480);
+ };
+ const back=()=>{if(pk)return;ans.length?setAns(ans.slice(0,-1)):setView("house")};
+ const edit=hh=>{setDraft(hh?{...hh}:{name:"",type:"가족",color:COLORS[0],role:"",kind:0,traits:[],info:"",entries:[]});setWz(0);setView("edit")};
+ const save=()=>{
+  const d={...draft,name:draft.name.trim()||"이름 없는 집",type:draft.type.trim()||"기타",role:draft.role.trim()||"멤버"};
+  if(d.id)setHouses(houses.map(x=>x.id===d.id?d:x));else{d.id=Date.now();setHouses([...houses,d])}
+  enter(d.id);
+ };
+ const del=()=>{if(houses.length>1){setHouses(houses.filter(x=>x.id!==draft.id));setHid(null);setView("home")}};
+ const up=(k,v)=>setDraft({...draft,[k]:v});
+ const Back=({to,label="뒤로"})=><button onClick={to} className="glass rounded-full w-10 h-10 text-lg" aria-label={label}><Ic n="back"/></button>;
+
+ return (
+  <div className="bg relative overflow-hidden flex justify-center">
+   {conf.length>0&&<div className="aurora"/>}
+   {conf.map(c=><i key={c.i} className="conf" style={{left:c.x+"%",background:c.c,animationDuration:c.d+"s",animationDelay:c.dl+"s"}}/>)}
+   {fl.map(f=><span key={f.id} className="floater" style={{left:f.x,top:f.y,"--dx":f.dx,background:f.c,boxShadow:`0 0 16px ${f.c}`}}/>)}
+   {toast&&<button onClick={()=>setToast(null)} className="fixed left-1/2 z-50 glass rounded-2xl px-4 py-3 text-sm text-center fade" style={{top:"calc(env(safe-area-inset-top,0px) + 12px)",transform:"translateX(-50%)",width:"calc(100% - 32px)",maxWidth:380,borderColor:"#cfe0ff",boxShadow:"0 0 24px #9fb4ff88"}}><Ic n="bolt"/> {toast}</button>}
+   {Array.from({length:18}).map((_,i)=><span key={i} className="star" style={{left:(i*53%100)+"%",top:(i*37%60)+"%",animationDelay:(i%6)*.5+"s"}}/>)}
+   <div className="relative w-full max-w-md min-h-screen px-5 pt-6 pb-10 flex flex-col">
+
+    {view==="home"&&(()=>{
+     const SL=[[26,18],[72,26],[36,48],[76,56],[24,78],[64,82],[50,33]];
+     const at=i=>[Math.min(SL[i%SL.length][0]+Math.floor(i/SL.length)*8,88),SL[i%SL.length][1]];
+     const pts=Array.from({length:houses.length+1},(_,i)=>at(i));
+     return (
+      <div className="fade">
+       <div className="flex items-start justify-between gap-3">
+        <div><h1 className="text-3xl font-bold tracking-tight">우리들의 마을</h1><p className="mt-2 text-sm text-indigo-100/70">집을 눌러 들어가, 함께 사는 사람들과 하루를 나눠요</p></div>
+        <button onClick={openStyle} className="glass rounded-full px-3 h-10 text-sm whitespace-nowrap flex items-center gap-1.5 shrink-0"><Ic n="pencil"/>나의 글투</button>
+       </div>
+       <div className="relative mt-4" style={{height:480}}>
+        <div className="absolute inset-0 rounded-[48px]" style={{background:"radial-gradient(ellipse at 50% 52%,#5256b366 0%,#2b2f6b33 48%,transparent 74%)"}}/>
+        <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><polyline points={pts.map(p=>p.join(",")).join(" ")} fill="none" stroke="rgba(255,255,255,.2)" strokeWidth="2" strokeDasharray="2 4" vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round"/></svg>
+        {[[6,38],[90,44],[8,62],[91,78],[48,8],[56,66],[14,92]].map(([x,y],i)=><span key={i} className="absolute text-xl opacity-70" aria-hidden="true" style={{left:x+"%",top:y+"%"}}><Tree k={i}/></span>)}
+        {houses.map((x,i)=>{const [px,py]=at(i),done=x.entries.some(e=>dk(e.date)===dk(Date.now()));return(
+         <button key={x.id} onClick={()=>enter(x.id)} className="absolute flex flex-col items-center" style={{left:px+"%",top:py+"%",transform:"translate(-50%,-50%)",zIndex:Math.round(py)}}>
+          <House kind={x.kind} color={x.color} cls="w-28 h-28 pointer-events-none"/>
+          <span className="glass rounded-full px-3 py-1 text-xs -mt-4 whitespace-nowrap" style={{borderColor:x.color+"99"}}>{x.name}{done&&<> <Ic n="check"/></>}</span>
+         </button>)})}
+        {(()=>{const [px,py]=at(houses.length);return(
+         <button onClick={()=>edit(null)} className="absolute flex flex-col items-center" style={{left:px+"%",top:py+"%",transform:"translate(-50%,-50%)",zIndex:Math.round(py)}}>
+          <span className="w-20 h-20 rounded-full flex items-center justify-center text-3xl chip" style={{border:"2px dashed rgba(255,255,255,.4)",boxShadow:"0 0 18px rgba(159,180,255,.35)"}}><Ic n="plus" s="30"/></span>
+          <span className="text-xs mt-1 text-indigo-100/80">새 집 짓기</span>
+         </button>)})()}
+       </div>
+      </div>
+     );
+    })()}
+
+    {view==="edit"&&draft&&(()=>{
+     const nx=()=>setWz(w=>w+1),auto=(k,v)=>{up(k,v);setTimeout(nx,350)};
+     const nm=draft.name.trim()||"이 집",c=draft.color,inp="w-full glass rounded-2xl p-4 text-base outline-none";
+     const Q=[
+      ["이 집의 이름을 지어주세요",<input autoFocus value={draft.name} maxLength={14} onChange={e=>up("name",e.target.value)} onKeyDown={e=>e.key==="Enter"&&nx()} placeholder="예) 우리 가족, 동아리 방" className={inp} style={{color:"#eceaff"}}/>],
+      [`'${nm}'은(는) 어떤 무리와 함께 쓰는 집인가요?`,<div className="space-y-3"><Chips opts={["가족","연인","친구","동료"]} val={draft.type} pick={v=>auto("type",v)} c={c}/><input value={GN[draft.type]?"":draft.type} maxLength={10} onChange={e=>up("type",e.target.value)} placeholder="그 외 직접 입력 (예: 룸메이트, 동아리)" className={inp} style={{color:"#eceaff"}}/></div>],
+      ["집에 어떤 빛깔의 불을 켤까요?",<div className="flex gap-4 justify-center py-2">{COLORS.map(x=><button key={x} onClick={()=>auto("color",x)} aria-label={x} className="w-12 h-12 rounded-full transition-all" style={{background:x,boxShadow:c===x?`0 0 0 3px #12132b,0 0 0 5px ${x},0 0 22px ${x}`:"none"}}/>)}</div>],
+      ["어떤 모양의 집을 지을까요?",<div className="grid grid-cols-3 gap-2">{[0,1,2,3,4,5].map(k=><button key={k} onClick={()=>auto("kind",k)} aria-label={"집 모양 "+(k+1)} className={"glass rounded-2xl p-1 chip "+(draft.kind===k?"on":"")} style={{"--c":c}}><House kind={k} color={c} cls="w-full h-auto pointer-events-none"/></button>)}</div>],
+      [`'${nm}'에서 나는 어떤 역할인가요?`,<div className="space-y-3"><Chips opts={RS[tk(draft.type)]} val={draft.role} pick={v=>auto("role",v)} c={c}/><input value={draft.role} maxLength={10} onChange={e=>up("role",e.target.value)} placeholder="직접 입력 (예: 요리사, 총무)" className={inp} style={{color:"#eceaff"}}/></div>],
+      ["이 집에서 나는 어떤 사람인가요? (여러 개 가능)",<Chips multi opts={Object.keys(TRS)} val={draft.traits} pick={v=>up("traits",draft.traits.includes(v)?draft.traits.filter(x=>x!==v):[...draft.traits,v])} c={c}/>],
+      ["이 집을 한 줄로 소개한다면?",<textarea value={draft.info} rows={3} maxLength={60} onChange={e=>up("info",e.target.value)} placeholder="예) 주말마다 다 같이 밥 먹는 집" className={inp} style={{color:"#eceaff"}}/>],
+     ];
+     return (
+      <div className="flex-1 flex flex-col">
+       <div className="flex items-center justify-between mb-3">
+        <Back to={()=>wz>0?setWz(wz-1):(draft.id?enter(draft.id):setView("home"))}/>
+        <div className="flex gap-1">{Q.map((_,k)=><span key={k} className="h-1.5 rounded-full transition-all" style={{width:k===wz?18:6,background:k<=wz?c:"rgba(255,255,255,.25)",boxShadow:k===wz?`0 0 8px ${c}`:"none"}}/>)}</div>
+        <button onClick={()=>draft.id?enter(draft.id):setView("home")} className="glass rounded-full w-10 h-10 text-sm" aria-label="닫기"><Ic n="close"/></button>
+       </div>
+       <div key={wz} className="slide flex-1 flex flex-col justify-center py-6">
+        <p className="text-xs mb-2" style={{color:c}}>{draft.id?"집 꾸미기":"새 집 만들기"} · {wz+1}/{Q.length}</p>
+        <h2 className="text-2xl font-bold leading-snug mb-6">{Q[wz][0]}</h2>
+        {Q[wz][1]}
+        <button onClick={wz===Q.length-1?save:nx} style={{"--c":c}} className="glass chip on rounded-full w-full py-4 mt-6 font-semibold">{wz===Q.length-1?(draft.id?"저장하기":"집 만들기"):"다음"}</button>
+        {wz===Q.length-1&&draft.id&&houses.length>1&&<button onClick={del} className="w-full text-sm text-rose-300/80 py-3 mt-1">이 집 지우기</button>}
+       </div>
+      </div>
+     );
+    })()}
+
+    {view==="house"&&h&&(
+     <div className="fade">
+      <div className="flex items-center justify-between"><Back to={()=>setView("home")} label="마을로"/><button onClick={()=>edit(h)} className="glass rounded-full px-3 h-10 text-sm whitespace-nowrap flex items-center gap-1.5"><Ic n="pencil"/>집 꾸미기</button></div>
+      <div className="flex flex-col items-center text-center mt-2">
+       <House kind={h.kind} color={h.color} cls="w-44 h-44" onClick={startQuiz}/>
+       <h2 className="text-2xl font-bold mt-1">{h.name}</h2>
+       {h.info&&<p className="text-sm text-indigo-100/70 mt-1">{h.info}</p>}
+       <div className="flex flex-wrap gap-1.5 justify-center mt-3"><Tag t={h.type} c={h.color}/><Tag t={"나 · "+h.role} c={h.color}/>{h.traits.map(t=><Tag key={t} t={t} c={h.color}/>)}</div>
+       <button onClick={startQuiz} style={{"--c":h.color}} className="glass chip on rounded-full px-8 py-3.5 mt-5 font-semibold">{wroteToday?"오늘 일기 다시 쓰기":"이 집에 오늘 일기 쓰기"}</button>
+      </div>
+      {tdy?(
+       <div className="mt-8">
+        {tdy.pats>0&&<div className="glass rounded-2xl p-4 text-center mb-5" style={{borderColor:"#ffd88a",boxShadow:"0 0 24px #ffd88a55"}}>
+         <div className="flex justify-center gap-2 mb-2">{Array.from({length:tdy.pats}).map((_,i)=><span key={i} className="w-4 h-4 rounded-full" style={{background:["#ffd88a","#ffb3e6","#9fe3ff"][i%3],boxShadow:`0 0 12px ${["#ffd88a","#ffb3e6","#9fe3ff"][i%3]}`,animation:`drift ${2+i*.4}s ease-in-out infinite`}}/>)}</div>
+         <p className="text-sm">우리 집 사람 {tdy.pats}명이 당신을 토닥이고 있어요</p></div>}
+        <h3 className="font-semibold mb-3">오늘의 우리</h3>
+        <Avatars me={h.entries[0].tier} members={tdy.members} match={tdy.match} color={h.color}/>
+        {tdy.match&&(tdy.match.kind==="jackpot"
+         ?<div className="rounded-2xl p-5 text-center mt-4 fade" style={{background:"linear-gradient(135deg,#6ee7c855,#c4a3ff55,#ff9fd055)",border:"1px solid #fff8",boxShadow:"0 0 30px #c4a3ff88"}}><p className="text-2xl"><Ic n="party" s="34"/></p><p className="font-bold mt-1">우리 모두 {kwTag(tdy.match.kw)}</p><p className="text-xs mt-1 text-indigo-100/80">캡처해서 단톡방에 자랑해 보세요</p></div>
+         :<p className="text-sm text-center mt-3 fade" style={{color:h.color}}><Ic n="bolt"/> {msgOf(tdy.match)}</p>)}
+        <div className="space-y-3 mt-5">{tdy.members.map((m,i)=>{const c=T[m.tier].c;return(
+         <div key={m.n} className="glass rounded-2xl p-4 unblur" style={{animationDelay:i*.35+"s",borderColor:c+"88"}}>
+          <div className="flex items-center justify-between text-xs"><span className="font-semibold text-sm">{m.n}</span><span style={{color:c}}>{T[m.tier].e} {T[m.tier].l}</span></div>
+          <p className="text-sm leading-7 text-indigo-50/90 mt-2">{m.x}</p>
+          <div className="flex flex-wrap gap-1.5 mt-3">{m.tags.map(t=><Bubble key={t} t={t} c={c} hit={sent[m.n+":"+t]} zapm={tdy.match&&tdy.match.kw===t&&tdy.match.names.includes(m.n)} onPat={el=>pat(el,m.n+":"+t)}/>)}</div>
+         </div>)})}</div>
+        <p className="text-center text-xs text-indigo-200/60 mt-3">키워드 방울을 두 번 탭하거나 꾹 눌러 토닥여 보세요</p>
+       </div>
+      ):(
+       <div className="glass rounded-2xl p-5 text-center mt-8">
+        <div className="text-3xl mb-2"><Ic n="lock" s="34"/></div>
+        <p className="font-semibold">오늘 일기를 써야 열려요</p>
+        <p className="text-sm text-indigo-200/70 mt-1">내 하루를 먼저 남기면, 우리 집 사람들의 오늘이 블라인드를 걷고 나타나요.</p>
+        <div className="mt-4 space-y-2" aria-hidden="true">{[0,1].map(i=><div key={i} className="rounded-xl p-3 text-left" style={{background:"rgba(255,255,255,.06)",filter:"blur(6px)"}}><p className="text-sm">가려진 누군가의 하루 ···</p><p className="text-xs">가려진 키워드 · 가려진 기분</p></div>)}</div>
+       </div>
+      )}
+      <h3 className="font-semibold mt-8 mb-3">나의 일기 달력</h3>
+      <Cal entries={h.entries} color={h.color}/>
+     </div>
+    )}
+
+    {view==="quiz"&&cur&&(
+     <div className="flex-1 flex flex-col">
+      <div className="flex items-center justify-between mb-3">
+       <Back to={back}/>
+       <div className="text-center"><div className="flex gap-1 justify-center">{STG.map((s,k)=><span key={k} className="h-1.5 rounded-full transition-all" style={{width:k===qi?18:6,background:k<=qi?col:"rgba(255,255,255,.25)",boxShadow:k===qi?`0 0 8px ${col}`:"none"}}/>)}</div><p className="text-[11px] mt-1" style={{color:col}}>{h.name} · {STG[qi]}</p></div>
+       <button onClick={()=>setView("house")} className="glass rounded-full w-10 h-10 text-sm" aria-label="집으로"><Ic n="home"/></button>
+      </div>
+      <div className="flex flex-wrap gap-1.5 min-h-[28px]">{ans.slice(-4).filter(a=>a.l).map(a=><span key={a.l} className="fade text-[11px] rounded-full px-2.5 py-1" style={{border:"1px solid "+col,background:col+"22"}}>{a.l}</span>)}</div>
+      <div key={qi} className="slide flex-1 flex flex-col justify-center py-6">
+       <h2 className="text-2xl font-bold leading-snug mb-6">{cur.q}</h2>
+       <div className="grid grid-cols-2 gap-3">
+        {cur.o.map(o=>(
+         <button key={o.l} onClick={()=>choose(o)} style={{"--c":col}} className={"glass chip rounded-2xl py-4 px-3 text-[15px] font-medium "+(pk===o.l?"on":"")}>
+          {o.e&&<div className="text-2xl mb-1">{o.e}</div>}{o.l}
+         </button>))}
+        <CustomInput key={qi} final={cur.text} onDone={choose}/>
+       </div>
+      </div>
+     </div>
+    )}
+
+    {view==="style"&&(()=>{
+     const c="#9fb4ff",nx=()=>setSw(w=>w+1),au=(k,v)=>{setSd({...sd,[k]:v});setTimeout(nx,350)},inp="w-full glass rounded-2xl p-4 text-base outline-none";
+     const Q=[
+      ["일기의 말끝은 어떤 느낌이에요?",<Chips opts={ENDS.map(x=>x[1])} val={(ENDS.find(x=>x[0]===sd.end)||ENDS[0])[1]} pick={v=>au("end",ENDS.find(x=>x[1]===v)[0])} c={c}/>],
+      ["일기는 보통 얼마나 쓰나요?",<Chips opts={LENS.map(x=>x[1])} val={(LENS.find(x=>x[0]===sd.len)||LENS[1])[1]} pick={v=>au("len",LENS.find(x=>x[1]===v)[0])} c={c}/>],
+      ["자주 쓰는 말버릇이나 표현이 있나요? (선택)",<input value={sd.habit} maxLength={40} onChange={e=>setSd({...sd,habit:e.target.value})} placeholder="예) 진짜, 약간, ㅋㅋ, 괜히" className={inp} style={{color:"#eceaff"}}/>],
+      ["평소 일기 쓰듯, 오늘 하루를 자유롭게 적어볼래요? (선택)",<textarea value={sd.sample} rows={6} maxLength={400} onChange={e=>setSd({...sd,sample:e.target.value})} placeholder="예) 점심에 먹은 라면이 제일 좋았다. 퇴근길엔 비가 와서 좀 짜증났지만, 집에 오니 그냥 다 괜찮아졌다." className={inp} style={{color:"#eceaff"}}/>],
+     ];
+     const last=sw===Q.length-1;
+     return (
+      <div className="flex-1 flex flex-col">
+       <div className="flex items-center justify-between mb-3">
+        {sw>0?<Back to={()=>setSw(sw-1)}/>:<span className="w-10"/>}
+        <div className="flex gap-1">{Q.map((_,k)=><span key={k} className="h-1.5 rounded-full transition-all" style={{width:k===sw?18:6,background:k<=sw?c:"rgba(255,255,255,.25)",boxShadow:k===sw?`0 0 8px ${c}`:"none"}}/>)}</div>
+        {style&&style.done?<button onClick={()=>setView("home")} className="glass rounded-full w-10 h-10 text-sm" aria-label="닫기"><Ic n="close"/></button>:<span className="w-10"/>}
+       </div>
+       <div key={sw} className="slide flex-1 flex flex-col justify-center py-6">
+        <p className="text-xs mb-2" style={{color:c}}>나의 글투 배우기 · {sw+1}/{Q.length}</p>
+        {sw===0&&!(style&&style.done)&&<p className="text-sm text-indigo-100/70 mb-3">AI가 내 일기를 대신 쓸 때, 진짜 내가 쓴 것처럼 보이도록 몇 가지만 알려주세요.</p>}
+        <h2 className="text-2xl font-bold leading-snug mb-6">{Q[sw][0]}</h2>
+        {Q[sw][1]}
+        <button onClick={last?saveStyle:nx} style={{"--c":c}} className="glass chip on rounded-full w-full py-4 mt-6 font-semibold">{last?(sd.sample.trim()?"나의 글투 저장하기":"건너뛰고 저장하기"):"다음"}</button>
+       </div>
+      </div>
+     );
+    })()}
+
+    {view==="loading"&&(
+     <div className="flex-1 flex flex-col items-center justify-center text-center fade">
+      <div className="relative w-28 h-28 mb-8">
+       <div className="absolute inset-0 rounded-full" style={{border:"2px dashed "+col,boxShadow:"0 0 24px "+col,animation:"orbit 8s linear infinite"}}/>
+       {[0,1,2].map(i=><div key={i} className="absolute inset-0" style={{animation:`orbit ${2.4+i*.8}s linear infinite`}}><span className="absolute left-1/2 top-0 w-3 h-3 -ml-1.5 -mt-1.5 rounded-full" style={{background:col,boxShadow:"0 0 12px "+col}}/></div>)}
+       <div className="absolute inset-0 flex items-center justify-center text-3xl">{diary&&T[diary.tier].e}</div>
+      </div>
+      <p className="text-lg leading-relaxed">당신의 조각들을 모아<br/>오늘의 일기를 완성하고 있어요...</p>
+      <p className="text-sm text-indigo-200/70 mt-3 fade" key={ls}>{LMSG[ls]}</p>
+     </div>
+    )}
+
+    {view==="result"&&diary&&h&&(()=>{const m=T[diary.tier];return(
+     <div className="fade pt-2">
+      <div className="glass rounded-3xl p-6" style={{borderColor:m.c,boxShadow:`0 0 28px ${m.c}55, 0 10px 30px rgba(5,6,25,.45)`}}>
+       <p className="text-xs text-indigo-200/70">{fmt(diary.date)} · {h.name}의 {h.role} · <span style={{color:m.c}}>{m.e} {m.l}</span></p>
+       <h2 className="text-xl font-bold mt-1 mb-4">{diary.title}</h2>
+       {ed
+        ?<textarea value={etxt} rows={10} onChange={e=>setEtxt(e.target.value)} className="w-full glass rounded-2xl p-3 text-base leading-7 outline-none" style={{color:"#eceaff"}} aria-label="일기 고치기"/>
+        :<div className="space-y-3 text-[15px] leading-8 text-indigo-50/95">{diary.paras.map((t,i)=><p key={i} className="fade" style={{animationDelay:i*.5+"s"}}>{t}</p>)}</div>}
+      </div>
+      <p className="text-center text-xs text-indigo-200/60 mt-3">{note||(diary.ai?"AI가 나의 글투로 썼어요 · 고치면 글투를 더 배워요":"AI 연결이 어려워 기본 문장으로 엮었어요")}</p>
+      <div className="mt-4 flex flex-col gap-3">
+       {ed
+        ?<button onClick={saveEdit} style={{"--c":m.c}} className="glass chip on rounded-full py-4 font-semibold">저장하고 글투 배우기</button>
+        :<button onClick={()=>{setEtxt(diary.paras.join("\n\n"));setEd(true)}} className="glass chip rounded-full py-3 text-sm flex items-center justify-center gap-1.5"><Ic n="pencil"/>내 말로 고치기</button>}
+       <button onClick={()=>setView("house")} style={{"--c":m.c}} className="glass chip on rounded-full py-4 font-semibold">우리 집으로 돌아가기</button>
+       <button onClick={()=>setView("home")} className="glass chip rounded-full py-3 text-sm">마을로 나가기</button>
+      </div>
+     </div>
+    )})()}
+   </div>
+  </div>
+ );
+}
+class EB extends React.Component{
+ constructor(p){super(p);this.state={e:null}}
+ static getDerivedStateFromError(e){return{e}}
+ render(){return this.state.e?<div className="bg p-6 text-sm"><p>화면을 그리다 문제가 생겼어요.</p><pre className="whitespace-pre-wrap text-xs opacity-70 mt-2">{String(this.state.e)}</pre><button onClick={()=>{try{localStorage.removeItem("hj_houses")}catch(e){}location.reload()}} className="glass rounded-full px-5 py-2 mt-4">초기화하고 다시 시작</button></div>:this.props.children}
+}
+ReactDOM.createRoot(document.getElementById("root")).render(<EB><App/></EB>);
+</script>
+</body>
+</html>
